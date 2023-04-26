@@ -7,14 +7,13 @@ import Timer from "/src/comps/timer.js"
 import axios from 'axios'
 import * as _ from "lodash"
 
-const interval = 10;
+const PHASE_LENGTH = 10;
 const phases = ['night', 'day'];
 
 
 export default function Game() {
   const [gameData, setGameData] = useState({
     gameID: '1234',
-    username: 'TheBigBadBill',
     users: [
        {
         username: 'TheBigBadBill',
@@ -70,7 +69,7 @@ export default function Game() {
   const [gameStarted, setGameStarted] = useState(false)
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
-  const [timeLeft, setTimeLeft] = useState(interval); //dont need
+  // const [timeLeft, setTimeLeft] = useState(interval); //dont need
   const [phaseIndex, setPhaseIndex] = useState(0)
   const [phase, setPhase] = useState('nights')
   const [players, setPlayers] = useState([])
@@ -126,7 +125,7 @@ useEffect(() => {
     if (gameData !== null) {
      setPlayers(gameData.users)
      setPhase(gameData.phase)
-     setGameID(gameData.gameId)
+     setGameID('1234')
      setThisPlayer(gameData.users.filter(user => user.username === gameData.users[0].username)[0])
     }
   }, [gameData])
@@ -215,18 +214,18 @@ useEffect(() => {
     handleEndPhase(phases[(phaseIndex - 1) % phases.length])
   }, [phase])
 
-  useEffect(() => {
-    // const intervalId = setInterval(() => {
-      if (timeLeft < 1) {
-    //     setTimeLeft(interval); // set initial time left to 10 seconds
-        setPhaseIndex((phaseIndex + 1) % phases.length)
-      } else {
-        console.log(timeLeft)
-        setTimeLeft(timeLeft - 1);
-      }
-    // }, 1000);
-    // return () => clearInterval(intervalId);
-  }, [timeLeft]);
+  // useEffect(() => {
+  //   // const intervalId = setInterval(() => {
+  //     if (timeLeft < 1) {
+  //   //     setTimeLeft(interval); // set initial time left to 10 seconds
+  //       setPhaseIndex((phaseIndex + 1) % phases.length)
+  //     } else {
+  //       console.log(timeLeft)
+  //       setTimeLeft(timeLeft - 1);
+  //     }
+  //   // }, 1000);
+  //   // return () => clearInterval(intervalId);
+  // }, [timeLeft]);
 
   const getMessages = () => {
     const options = {
@@ -266,6 +265,25 @@ useEffect(() => {
     getMessages()
   })
 
+  const onNextPhase = async function() {
+    const response = await fetch(`/api/resetVotes/${gameID}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application.json'
+      }
+    })
+
+    if (!response.ok) {
+      console.error(`Error reseting votes: ${response.statusText}`)
+    } else {
+      const updatedGameState = await response.json()
+      console.log(updatedGameState, '----UPDATED GAME STATE-------')
+    }
+
+    setPhaseIndex((phaseIndex + 1) % phases.length)
+    console.log('phase index', phaseIndex)
+  }
+
   return (
     <>
       <div style={containerStyle}>
@@ -275,7 +293,7 @@ useEffect(() => {
               <p>{thisPlayer.role}</p>
             </div>
             <div style={phase === 'night' ? timerStyleNight : timerStyle}>
-              <Timer phaseIndex={phaseIndex} setPhaseIndex={setPhaseIndex} phases={phases}/>
+              <Timer period={PHASE_LENGTH} callback={onNextPhase} />
             </div>
             <div style={dayStyleNight}>
               <p>{phase}</p>
@@ -283,9 +301,17 @@ useEffect(() => {
             </div>
           </div>
           <div className="players" style={phase === 'night' ? playerContainerNight : playerContainer}>
-            {players !== [] && players.map(
+            {players.map(
               (player, i) =>
-                <Avatar key={i} player={player} thisPlayerCanSelect={thisPlayer.isAlive} selected={selected} setSelected={setSelected} setLastSelected={setLastSelected} gameID={gameID} />
+                <Avatar
+                  key={i}
+                  player={player}
+                  thisPlayerCanSelect={thisPlayer.isAlive}
+                  selected={selected}
+                  setSelected={setSelected}
+                  setLastSelected={setLastSelected}
+                  gameID={gameID}
+                />
               )
             }
           </div>
